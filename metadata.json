@@ -1,0 +1,7 @@
+{
+  "name": "VC Deal-Flow & Founder Ranking Engine",
+  "description": "AI-powered VC deal flow and founder ranking platform integrating Google Programmable Search, NYC VC Hackathon sourcing and due-diligence tracks, and Devpost feeds.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
