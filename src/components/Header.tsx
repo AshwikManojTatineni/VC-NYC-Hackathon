@@ -12,19 +12,21 @@ import {
   Plus,
   Globe,
   Database,
-  CheckCircle2
+  CheckCircle2,
+  LogOut
 } from 'lucide-react';
 import { UserProfile } from '../types';
 import { CSE_CONFIG } from '../data/mockData';
 
 interface HeaderProps {
-  activeTab: 'rankings' | 'cse' | 'feed' | 'profile' | 'mobile';
-  setActiveTab: (tab: 'rankings' | 'cse' | 'feed' | 'profile' | 'mobile') => void;
+  activeTab: 'rankings' | 'cse' | 'feed' | 'profile' | 'gamification' | 'mobile';
+  setActiveTab: (tab: 'rankings' | 'cse' | 'feed' | 'profile' | 'gamification' | 'mobile') => void;
   user: UserProfile;
   unreadCount: number;
   onOpenAddFounder: () => void;
   onOpenFreeTierModal: () => void;
   onOpenGoogleOAuthModal: () => void;
+  onLogout: () => void;
   onOpenShareModal: () => void;
   notificationPermission: NotificationPermission;
   onRequestNotificationPermission: () => void;
@@ -38,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAddFounder,
   onOpenFreeTierModal,
   onOpenGoogleOAuthModal,
+  onLogout,
   onOpenShareModal,
   notificationPermission,
   onRequestNotificationPermission,
@@ -248,6 +251,21 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('gamification')}
+            className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeTab === 'gamification'
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                : 'text-slate-300 hover:text-white hover:bg-slate-700/50'
+            }`}
+          >
+            <span>🎮</span>
+            <span>Syndicate</span>
+            <span className="text-[10px] font-bold bg-purple-500/30 text-purple-200 px-1.5 py-0.2 rounded border border-purple-400/40">
+              Lvl {user.vcLevel || 1}
+            </span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('mobile')}
             className={`px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium transition-all cursor-pointer flex items-center gap-1.5 ${
               activeTab === 'mobile'
@@ -263,11 +281,11 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Action Buttons with Official Google OAuth Login Button */}
         <div className="flex items-center gap-2">
-          {/* Official Google OAuth Login Button at the Top */}
+          {/* Official Google OAuth Login & Account Status Button */}
           <button
             onClick={onOpenGoogleOAuthModal}
             className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 text-xs font-semibold shadow-md transition-all cursor-pointer ring-1 ring-slate-300/80 hover:shadow-lg"
-            title="Google OAuth Login & Free Tier Account"
+            title={user.googleConnected ? `Signed in as ${user.email} (Click to switch account)` : 'Sign in with Google OAuth'}
           >
             {/* Official Google 'G' icon */}
             <svg className="w-4 h-4 shrink-0" viewBox="0 0 48 48">
@@ -290,16 +308,32 @@ export const Header: React.FC<HeaderProps> = ({
               <path fill="none" d="M0 0h48v48H0z" />
             </svg>
             <div className="flex items-center gap-1.5 text-left">
-              <span className="font-bold text-slate-900 hidden sm:inline">Google OAuth:</span>
+              <span className="font-bold text-slate-900 hidden sm:inline">
+                {user.googleConnected ? 'Google:' : 'Sign In'}
+              </span>
               <span className="text-slate-600 font-mono text-[11px] truncate max-w-[110px] sm:max-w-[140px]">
-                {user.email.split('@')[0]}
+                {user.googleConnected ? user.email.split('@')[0] : 'Connect'}
               </span>
               <span
-                className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
-                title="Google OAuth Connected"
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  user.googleConnected ? 'bg-emerald-500' : 'bg-amber-400'
+                }`}
+                title={user.googleConnected ? 'Google OAuth Active' : 'Not Connected'}
               />
             </div>
           </button>
+
+          {/* Explicit Top-Bar Logout Button if connected */}
+          {user.googleConnected && (
+            <button
+              onClick={onLogout}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800/90 hover:bg-rose-950/40 border border-slate-700/80 hover:border-rose-500/50 text-slate-300 hover:text-rose-300 text-xs font-semibold transition-all cursor-pointer shadow-sm"
+              title="Log out of webapp"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden md:inline">Logout</span>
+            </button>
+          )}
 
           {/* Score New Founder Button */}
           <button

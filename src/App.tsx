@@ -4,24 +4,28 @@ import { FounderRankingTable } from './components/FounderRankingTable';
 import { CSEWidget } from './components/CSEWidget';
 import { NotificationFeed } from './components/NotificationFeed';
 import { UserProfileSection } from './components/UserProfileSection';
+import { GamificationDashboard } from './components/GamificationDashboard';
 import { ShareAndMobileModal } from './components/ShareAndMobileModal';
 import { FounderDetailModal } from './components/FounderDetailModal';
 import { AddFounderModal } from './components/AddFounderModal';
 import { FreeTierMonitorModal } from './components/FreeTierMonitorModal';
 import { GoogleOAuthModal } from './components/GoogleOAuthModal';
+import { CalendarMeetModal } from './components/CalendarMeetModal';
+import { SocialConnectModal } from './components/SocialConnectModal';
+import { TechStackModal } from './components/TechStackModal';
 import {
   INITIAL_FOUNDERS,
   INITIAL_NOTIFICATIONS,
   INITIAL_USER,
   CSE_CONFIG,
 } from './data/mockData';
-import { Founder, NotificationItem, UserProfile } from './types';
+import { Founder, NotificationItem, UserProfile, CalendarMeeting } from './types';
 import {
   getNotificationPermission,
   requestNotificationPermission,
   sendBrowserNotification,
 } from './utils/browserNotifications';
-import { Bell, CheckCircle2, AlertCircle, X, ShieldCheck, Sparkles } from 'lucide-react';
+import { Bell, CheckCircle2, AlertCircle, X, ShieldCheck, Sparkles, ExternalLink, Globe } from 'lucide-react';
 
 // Augment window object for Google CSE
 declare global {
@@ -31,7 +35,7 @@ declare global {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'rankings' | 'cse' | 'feed' | 'profile' | 'mobile'>('rankings');
+  const [activeTab, setActiveTab] = useState<'rankings' | 'cse' | 'feed' | 'profile' | 'gamification' | 'mobile'>('rankings');
   const [founders, setFounders] = useState<Founder[]>(INITIAL_FOUNDERS);
   const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
 
@@ -56,6 +60,14 @@ export default function App() {
   const [isAddFounderModalOpen, setIsAddFounderModalOpen] = useState(false);
   const [isFreeTierModalOpen, setIsFreeTierModalOpen] = useState(false);
   const [isGoogleOAuthModalOpen, setIsGoogleOAuthModalOpen] = useState(false);
+
+  // Gamification & Outreach modals
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [selectedScheduleFounderId, setSelectedScheduleFounderId] = useState<string | undefined>(undefined);
+  const [isSocialModalOpen, setIsSocialModalOpen] = useState(false);
+  const [selectedSocialFounder, setSelectedSocialFounder] = useState<Founder | null>(null);
+  const [isTechModalOpen, setIsTechModalOpen] = useState(false);
+  const [selectedTechFounder, setSelectedTechFounder] = useState<Founder | null>(null);
 
   // Browser notification permission tracking
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() =>
@@ -118,11 +130,17 @@ export default function App() {
     setActiveTab('cse');
 
     // Deduct 1 free tier query
-    setUser((prev) => ({
-      ...prev,
-      dailyRequestsUsed: Math.min(prev.dailyRequestsTotal, (prev.dailyRequestsUsed || 0) + 1),
-      freeTierQueriesRemaining: Math.max(0, prev.freeTierQueriesRemaining - 1),
-    }));
+    setUser((prev) => {
+      const updated = {
+        ...prev,
+        dailyRequestsUsed: Math.min(prev.dailyRequestsTotal, (prev.dailyRequestsUsed || 0) + 1),
+        freeTierQueriesRemaining: Math.max(0, prev.freeTierQueriesRemaining - 1),
+      };
+      try {
+        localStorage.setItem('dealflow_user_profile', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
 
     // Trigger input in Google CSE widget if rendered
     setTimeout(() => {
@@ -400,18 +418,171 @@ export default function App() {
     triggerNotification(title, desc, delta >= 0 ? 'success' : 'warning');
   };
 
+  // Google OAuth Login Action
   const handleOAuthLoginSuccess = (updatedUser: Partial<UserProfile>) => {
     setUser((prev) => {
-      const next = { ...prev, ...updatedUser };
+      const next = { ...prev, ...updatedUser, googleConnected: true };
       try {
         localStorage.setItem('dealflow_user_profile', JSON.stringify(next));
       } catch (e) {}
       return next;
     });
 
+    const loginNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      timestamp: 'Just now',
+      title: `Google OAuth Login: ${updatedUser.email || user.email}`,
+      description: `Authenticated session active. 100 free Google CSE requests/day and 1,000,000 token evaluation quota ready.`,
+      track: 'Devpost',
+      read: false,
+      severity: 'success',
+      sourceUrl: CSE_CONFIG.hackathonUrl,
+    };
+    setNotifications((prev) => [loginNotif, ...prev]);
+
     triggerNotification(
       'Google OAuth Login Successful 🚀',
       `Welcome ${updatedUser.email || user.email}! Free tier requests and daily token quotas active.`,
+      'success'
+    );
+  };
+
+  // Logout Action
+  const handleLogout = () => {
+    setUser((prev) => {
+      const next = { ...prev, googleConnected: false };
+      try {
+        localStorage.setItem('dealflow_user_profile', JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+
+    const logoutNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      timestamp: 'Just now',
+      title: 'Google OAuth Session Signed Out',
+      description: 'You have logged out of the webapp. You can log in anytime with your Google account to restore full access.',
+      track: 'Devpost',
+      read: false,
+      severity: 'info',
+      sourceUrl: CSE_CONFIG.hackathonUrl,
+    };
+    setNotifications((prev) => [logoutNotif, ...prev]);
+
+    triggerNotification(
+      'Logged Out of Webapp 👋',
+      'Your Google OAuth session has been closed. Click Sign In to connect your Google account.',
+      'info'
+    );
+  };
+
+  // Schedule Google Calendar Video Conference
+  const handleScheduleMeeting = (meeting: CalendarMeeting) => {
+    const xpReward = 250;
+    setUser((prev) => {
+      const newXP = (prev.vcXP || 0) + xpReward;
+      const newLevel = Math.floor(newXP / 1000) + 1;
+      const updated = {
+        ...prev,
+        vcXP: newXP,
+        vcLevel: newLevel,
+        meetingsScheduledCount: (prev.meetingsScheduledCount || 0) + 1,
+        scheduledMeetings: [meeting, ...(prev.scheduledMeetings || [])],
+      };
+      try {
+        localStorage.setItem('dealflow_user_profile', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    // Add to Notification feed
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      timestamp: 'Just now',
+      title: `Google Meet Scheduled: ${meeting.founderName}`,
+      description: `Confirmed for ${meeting.date} at ${meeting.time}. Google Meet video conference generated (+250 XP earned).`,
+      track: 'Calendar Meet',
+      founderName: meeting.founderName,
+      founderId: meeting.founderId,
+      xpEarned: xpReward,
+      read: false,
+      severity: 'success',
+      sourceUrl: meeting.googleCalendarUrl,
+    };
+    setNotifications((prev) => [notif, ...prev]);
+
+    triggerNotification(
+      `Google Calendar Meeting Set 📹 (+${xpReward} XP)`,
+      `Video conference with ${meeting.founderName} (${meeting.startup}) booked for ${meeting.date} at ${meeting.time}.`,
+      'success'
+    );
+  };
+
+  // Social Connect Outreach action
+  const handleSocialConnected = (founderName: string, network: string) => {
+    const xpReward = 100;
+    setUser((prev) => {
+      const newXP = (prev.vcXP || 0) + xpReward;
+      const newLevel = Math.floor(newXP / 1000) + 1;
+      const updated = {
+        ...prev,
+        vcXP: newXP,
+        vcLevel: newLevel,
+        socialConnectsCount: (prev.socialConnectsCount || 0) + 1,
+      };
+      try {
+        localStorage.setItem('dealflow_user_profile', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      timestamp: 'Just now',
+      title: `Social Outreach Sent: ${founderName}`,
+      description: `Contacted via ${network}. Custom VC dealflow intro copied and sent (+100 XP).`,
+      track: 'Syndicate Quest',
+      founderName,
+      xpEarned: xpReward,
+      read: false,
+      severity: 'info',
+      sourceUrl: CSE_CONFIG.hackathonUrl,
+    };
+    setNotifications((prev) => [notif, ...prev]);
+
+    triggerNotification(
+      `Social Outreach Triggered 💬 (+${xpReward} XP)`,
+      `Outreach message to ${founderName} on ${network} copied. Reach out to win the deal!`,
+      'info'
+    );
+  };
+
+  // Claim Quest reward
+  const handleClaimQuest = (questId: string) => {
+    setUser((prev) => {
+      const quest = prev.quests?.find((q) => q.id === questId);
+      const xpReward = quest?.xpReward || 150;
+      const newXP = (prev.vcXP || 0) + xpReward;
+      const newLevel = Math.floor(newXP / 1000) + 1;
+      const updatedQuests = prev.quests?.map((q) =>
+        q.id === questId ? { ...q, completed: true } : q
+      );
+
+      const updated = {
+        ...prev,
+        vcXP: newXP,
+        vcLevel: newLevel,
+        quests: updatedQuests,
+      };
+      try {
+        localStorage.setItem('dealflow_user_profile', JSON.stringify(updated));
+      } catch (e) {}
+      return updated;
+    });
+
+    triggerNotification(
+      'Syndicate Quest Completed! 🏆',
+      'XP rewards credited to your VC Dealflow profile level.',
       'success'
     );
   };
@@ -448,6 +619,7 @@ export default function App() {
         onOpenAddFounder={() => setIsAddFounderModalOpen(true)}
         onOpenFreeTierModal={() => setIsFreeTierModalOpen(true)}
         onOpenGoogleOAuthModal={() => setIsGoogleOAuthModalOpen(true)}
+        onLogout={handleLogout}
         onOpenShareModal={() => setIsShareModalOpen(true)}
         notificationPermission={notificationPermission}
         onRequestNotificationPermission={handleRequestNotificationPermission}
@@ -462,6 +634,38 @@ export default function App() {
             onToggleStar={handleToggleStar}
             onRunCSESearch={handleRunCSESearch}
             onOpenAddFounder={() => setIsAddFounderModalOpen(true)}
+            onOpenScheduleModal={(f) => {
+              setSelectedScheduleFounderId(f.id);
+              setIsScheduleModalOpen(true);
+            }}
+            onOpenSocialModal={(f) => {
+              setSelectedSocialFounder(f);
+              setIsSocialModalOpen(true);
+            }}
+            onOpenTechModal={(f) => {
+              setSelectedTechFounder(f);
+              setIsTechModalOpen(true);
+            }}
+          />
+        )}
+
+        {activeTab === 'gamification' && (
+          <GamificationDashboard
+            user={user}
+            founders={founders}
+            onOpenScheduleModal={(founderId) => {
+              setSelectedScheduleFounderId(founderId);
+              setIsScheduleModalOpen(true);
+            }}
+            onOpenSocialModal={(f) => {
+              setSelectedSocialFounder(f);
+              setIsSocialModalOpen(true);
+            }}
+            onOpenTechModal={(f) => {
+              setSelectedTechFounder(f);
+              setIsTechModalOpen(true);
+            }}
+            onClaimQuest={handleClaimQuest}
           />
         )}
 
@@ -469,7 +673,7 @@ export default function App() {
           <CSEWidget
             initialQuery={pendingCSEQuery}
             onUseSignalInScore={(query, count) => {
-              // Handle signal usage
+              // Signal added
             }}
           />
         )}
@@ -492,8 +696,18 @@ export default function App() {
         {activeTab === 'profile' && (
           <UserProfileSection
             user={user}
-            onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+            onUpdateUser={(updated) => {
+              setUser((prev) => {
+                const next = { ...prev, ...updated };
+                try {
+                  localStorage.setItem('dealflow_user_profile', JSON.stringify(next));
+                } catch (e) {}
+                return next;
+              });
+            }}
             onRankingScoreChanged={handleRankingScoreChanged}
+            onLogout={handleLogout}
+            onOpenGoogleOAuthModal={() => setIsGoogleOAuthModalOpen(true)}
           />
         )}
 
@@ -576,6 +790,22 @@ export default function App() {
                     <li>Automated 100% composite score calculation</li>
                   </ul>
                 </div>
+
+                {/* Direct verified links */}
+                <div className="bg-slate-900/90 p-4 rounded-2xl border border-slate-800 space-y-2">
+                  <p className="text-[11px] font-bold text-white flex items-center gap-1.5">
+                    <Globe className="w-3.5 h-3.5 text-blue-400" />
+                    Verified Live Production URLs:
+                  </p>
+                  <a
+                    href="https://ais-pre-gvialmdiot7cqpybfmftev-184925551349.us-east5.run.app/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block p-2 rounded-xl bg-slate-950 border border-slate-800 text-blue-300 text-[11px] font-mono hover:text-white transition-colors truncate"
+                  >
+                    https://ais-pre-gvialmdiot7cqpybfmftev-184925551349.us-east5.run.app/
+                  </a>
+                </div>
               </div>
             </div>
           </div>
@@ -621,6 +851,18 @@ export default function App() {
         onClose={() => setSelectedFounder(null)}
         onToggleStar={handleToggleStar}
         onRunCSESearch={handleRunCSESearch}
+        onOpenScheduleModal={(f) => {
+          setSelectedScheduleFounderId(f.id);
+          setIsScheduleModalOpen(true);
+        }}
+        onOpenSocialModal={(f) => {
+          setSelectedSocialFounder(f);
+          setIsSocialModalOpen(true);
+        }}
+        onOpenTechModal={(f) => {
+          setSelectedTechFounder(f);
+          setIsTechModalOpen(true);
+        }}
       />
 
       <AddFounderModal
@@ -639,7 +881,15 @@ export default function App() {
         isOpen={isFreeTierModalOpen}
         onClose={() => setIsFreeTierModalOpen(false)}
         user={user}
-        onUpdateUser={(updated) => setUser((prev) => ({ ...prev, ...updated }))}
+        onUpdateUser={(updated) => {
+          setUser((prev) => {
+            const next = { ...prev, ...updated };
+            try {
+              localStorage.setItem('dealflow_user_profile', JSON.stringify(next));
+            } catch (e) {}
+            return next;
+          });
+        }}
       />
 
       <GoogleOAuthModal
@@ -647,8 +897,33 @@ export default function App() {
         onClose={() => setIsGoogleOAuthModalOpen(false)}
         user={user}
         onLoginSuccess={handleOAuthLoginSuccess}
+        onLogout={handleLogout}
         notificationPermission={notificationPermission}
         onPermissionChange={setNotificationPermission}
+      />
+
+      {/* Calendar Video Conference Scheduler Modal */}
+      <CalendarMeetModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        founders={founders}
+        selectedFounderId={selectedScheduleFounderId}
+        onScheduleMeeting={handleScheduleMeeting}
+      />
+
+      {/* Founder Social Outreach Modal */}
+      <SocialConnectModal
+        isOpen={isSocialModalOpen}
+        onClose={() => setIsSocialModalOpen(false)}
+        founder={selectedSocialFounder}
+        onSocialConnected={handleSocialConnected}
+      />
+
+      {/* Required 4 Technologies & MCP Agent Monitor Modal */}
+      <TechStackModal
+        isOpen={isTechModalOpen}
+        onClose={() => setIsTechModalOpen(false)}
+        founder={selectedTechFounder}
       />
     </div>
   );

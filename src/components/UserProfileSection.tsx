@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
@@ -14,7 +14,9 @@ import {
   RotateCcw,
   Sliders,
   ExternalLink,
-  Lock
+  Lock,
+  LogOut,
+  LogIn
 } from 'lucide-react';
 import { UserProfile, ScoreBreakdown } from '../types';
 import { CSE_CONFIG } from '../data/mockData';
@@ -23,6 +25,8 @@ interface UserProfileSectionProps {
   user: UserProfile;
   onUpdateUser: (updatedUser: Partial<UserProfile>) => void;
   onRankingScoreChanged?: (oldScore: number, newScore: number) => void;
+  onLogout?: () => void;
+  onOpenGoogleOAuthModal?: () => void;
 }
 
 const AVATAR_PRESETS = [
@@ -38,6 +42,8 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
   user,
   onUpdateUser,
   onRankingScoreChanged,
+  onLogout,
+  onOpenGoogleOAuthModal,
 }) => {
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
@@ -48,6 +54,17 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
   const [role, setRole] = useState(user.role);
   const [customAvatarUrl, setCustomAvatarUrl] = useState('');
   const [showCustomAvatarInput, setShowCustomAvatarInput] = useState(false);
+
+  // Sync state when user prop changes (e.g. after Google OAuth login or logout)
+  useEffect(() => {
+    setName(user.name);
+    setEmail(user.email);
+    setBio(user.bio);
+    setAvatar(user.avatar);
+    setStartup(user.startup);
+    setTagline(user.tagline);
+    setRole(user.role);
+  }, [user.name, user.email, user.avatar, user.bio, user.startup, user.tagline, user.role]);
 
   // Founder score subcomponents
   const [domainDepth, setDomainDepth] = useState(user.personalFounderScore.domainDepth);
@@ -145,15 +162,44 @@ export const UserProfileSection: React.FC<UserProfileSectionProps> = ({
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
                   {role}
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Google OAuth Authenticated
-                </span>
+                {user.googleConnected ? (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                    Google OAuth Authenticated
+                  </span>
+                ) : (
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30 flex items-center gap-1">
+                    Logged Out (Guest)
+                  </span>
+                )}
               </div>
 
-              <div className="flex items-center gap-2 text-slate-300 text-xs">
-                <Mail className="w-3.5 h-3.5 text-blue-400" />
-                <span className="font-mono">{email}</span>
+              <div className="flex flex-wrap items-center gap-3 text-slate-300 text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Mail className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="font-mono">{email}</span>
+                </div>
+
+                {user.googleConnected ? (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-semibold transition-colors cursor-pointer text-[11px]"
+                    title="Log out of webapp"
+                  >
+                    <LogOut className="w-3 h-3" />
+                    <span>Log Out</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onOpenGoogleOAuthModal}
+                    className="flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-500/15 hover:bg-blue-500/25 text-blue-300 border border-blue-500/30 font-semibold transition-colors cursor-pointer text-[11px]"
+                  >
+                    <LogIn className="w-3 h-3" />
+                    <span>Log In with Google</span>
+                  </button>
+                )}
               </div>
 
               <p className="text-xs sm:text-sm text-slate-300 max-w-xl pt-1 leading-relaxed">

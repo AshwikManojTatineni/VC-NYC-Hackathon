@@ -73,6 +73,40 @@ export const AddFounderModal: React.FC<AddFounderModalProps> = ({
       redFlags: ['Standard pre-seed execution risk'],
       verifiedDueDiligence: dueDiligence >= 12,
       starred: false,
+      socials: {
+        linkedin: `https://linkedin.com/in/${name.toLowerCase().replace(/\s+/g, '-')}`,
+        twitter: `https://x.com/${name.toLowerCase().replace(/\s+/g, '')}`,
+        github: `https://github.com/${startup.toLowerCase().replace(/\s+/g, '')}-ai`,
+        warpcast: `https://warpcast.com/${name.toLowerCase().replace(/\s+/g, '')}`,
+      },
+      techStack: {
+        nicrronNinoo: {
+          status: 'connected',
+          telemetryVersion: 'v2.8.4-edge',
+          lastPing: '2s ago',
+          agentSyncRate: '99.4%',
+        },
+        prismBlockConvey: {
+          status: 'active',
+          url: 'prism.blockconvey.com',
+          mcpToolsCount: 14,
+          agentLatencyMs: 38,
+          activeMcpServer: 'mcp-server-dealflow',
+        },
+        aktaProWokelo: {
+          status: 'ready',
+          url: 'akta.pro',
+          investmentMemoScore: Math.min(98, totalScore),
+          moatAnalysis: 'Proprietary dealflow workflow with high defensibility and network effects.',
+        },
+        roundtableCP: {
+          status: 'open',
+          spvPoolName: `${startup} Syndicate SPV`,
+          allocationTarget: askAmount || '$1,500,000',
+          committedPercent: 35,
+          quorumStatus: '2/5 LPs Approved',
+        },
+      },
     };
 
     onAddFounder(newFounder);

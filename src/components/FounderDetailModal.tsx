@@ -16,7 +16,10 @@ import {
   Activity,
   Layers,
   Calendar,
-  Zap
+  Zap,
+  Video,
+  MessageCircle,
+  Cpu
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -38,6 +41,9 @@ interface FounderDetailModalProps {
   onToggleStar: (founderId: string) => void;
   onRunCSESearch: (query: string) => void;
   onUpdateScore?: (founderId: string, newTotal: number) => void;
+  onOpenScheduleModal?: (founder: Founder) => void;
+  onOpenSocialModal?: (founder: Founder) => void;
+  onOpenTechModal?: (founder: Founder) => void;
 }
 
 export const FounderDetailModal: React.FC<FounderDetailModalProps> = ({
@@ -45,6 +51,9 @@ export const FounderDetailModal: React.FC<FounderDetailModalProps> = ({
   onClose,
   onToggleStar,
   onRunCSESearch,
+  onOpenScheduleModal,
+  onOpenSocialModal,
+  onOpenTechModal,
 }) => {
   if (!founder) return null;
 
@@ -696,8 +705,8 @@ export const FounderDetailModal: React.FC<FounderDetailModalProps> = ({
         )}
 
         {/* Modal Bottom Actions */}
-        <div className="flex items-center justify-between pt-4 border-t border-slate-800">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-slate-400">Tags:</span>
             {founder.tags.map((t) => (
               <span key={t} className="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 border border-slate-700">
@@ -706,20 +715,60 @@ export const FounderDetailModal: React.FC<FounderDetailModalProps> = ({
             ))}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Google Calendar Video Meet Button */}
+            <button
+              onClick={() => {
+                onClose();
+                onOpenScheduleModal?.(founder);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center gap-1.5 shadow transition-colors cursor-pointer"
+              title="Schedule Google Calendar Video Conference (+250 XP)"
+            >
+              <Video className="w-3.5 h-3.5" />
+              <span>Book Google Meet</span>
+            </button>
+
+            {/* Founder Social Connect Button */}
+            <button
+              onClick={() => {
+                onClose();
+                onOpenSocialModal?.(founder);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-indigo-600/30 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/40 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Outreach on Founder Social Networks (+100 XP)"
+            >
+              <MessageCircle className="w-3.5 h-3.5" />
+              <span>Socials</span>
+            </button>
+
+            {/* Required Tech Stack Button */}
+            <button
+              onClick={() => {
+                onClose();
+                onOpenTechModal?.(founder);
+              }}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              title="Inspect Block Convey MCP, akta.pro, Roundtable CP, NicrronNinoo"
+            >
+              <Cpu className="w-3.5 h-3.5 text-blue-400" />
+              <span>MCP & Tech Stack</span>
+            </button>
+
             <button
               onClick={() => {
                 onClose();
                 onRunCSESearch(founder.cseQuery);
               }}
-              className="px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Globe className="w-3.5 h-3.5" />
-              <span>Verify on CSE</span>
+              <span>CSE Web</span>
             </button>
+
             <button
               onClick={onClose}
-              className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition-colors cursor-pointer"
             >
               Done
             </button>
